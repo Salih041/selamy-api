@@ -18,7 +18,7 @@ mongoose.connect(dburl)
         console.log("MongoDB connected");
         app.listen(PORT,()=>{console.log("Server is running on " , PORT)});
     }).catch((err)=>{
-        console.error("MongoDB hatası");
+        console.error("MongoDB error");
         console.error(err);
         process.exit(1);
     })
