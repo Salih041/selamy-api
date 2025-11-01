@@ -1,15 +1,62 @@
 import express from "express";
 import Post from "../models/Post.js";
+import User from "../models/User.js";
 import authMiddleware from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
 router.get("/",async (req,res)=>{   // get all posts
     try{
-        const posts = await Post.find().populate("author","username").sort({createdAt : -1})
-        res.status(200).json(posts)
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const skipIndex = (page-1) * limit;
+
+        const posts = await Post.find().populate("author","username").sort({createdAt : -1}).skip(skipIndex).limit(limit)
+        const totalResults = await Post.countDocuments({});
+
+        res.status(200).json({
+            data:posts,
+            pagination:{
+                currentPage:page, 
+                limit : limit, 
+                totalResults:totalResults,
+                totalPages : Math.ceil(totalResults/limit)
+        }})
     }catch(error){
         res.status(500).json({error : error.message});
+    }
+})
+
+router.get("/search" , async (req,res)=>{  //search post
+    try{
+        const searchTerm = req.query.q;
+        if(!searchTerm) return res.status(400).json({message : "term required"});
+
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const skipIndex = (page-1) * limit;
+
+        const users = await User.find({username:{$regex : searchTerm, $options : 'i'}}).select("_id");
+        const authorIds = users.map(user => user._id);
+
+        const queryFilter = {$or: [
+                {title : { $regex : searchTerm, $options : 'i'}},
+                {content : { $regex : searchTerm, $options : 'i'}},
+                {author : {$in : authorIds}}
+            ]}
+        const posts = await Post.find(queryFilter).populate("author","username").sort({createdAt:-1}).skip(skipIndex).limit(limit)
+        const totalResults = await Post.countDocuments(queryFilter);
+
+        res.status(200).json({
+            data: posts,
+            pagination:{
+                currentPage:page, 
+                limit : limit, 
+                totalResults:totalResults,
+                totalPages : Math.ceil(totalResults/limit)
+            }});
+    }catch(error){
+        res.status(500).json({error: error.message})
     }
 })
 
@@ -142,7 +189,7 @@ router.put("/:id/comment/:commentid", authMiddleware , async (req,res)=>{
     }
 })
 
-router.post("/:id/like", authMiddleware, async (req,res)=>{
+router.put("/:id/like", authMiddleware, async (req,res)=>{
     try{
         const post = await Post.findById(req.params.id);
         if(!post) return res.status(404).json({message : "Post Not Found"});
