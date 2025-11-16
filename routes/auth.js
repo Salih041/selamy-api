@@ -8,6 +8,12 @@ const router = express.Router();
 router.post("/register", async (req,res)=>{
     try{
         const {username, password} = req.body;
+
+        const existingUser = await User.findOne({ username: username });
+        if (existingUser) {
+            return res.status(400).json({ message: "Bu kullanıcı adı zaten alınmış." });
+        }
+        
         const hashedPassword = await bcrypt.hash(password,12);
 
         const newUser = new User({
