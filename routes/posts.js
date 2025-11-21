@@ -44,6 +44,7 @@ router.get("/search", async (req, res) => {  //search post
             $or: [
                 { title: { $regex: searchTerm, $options: 'i' } },
                 { content: { $regex: searchTerm, $options: 'i' } },
+                { tags: { $regex: searchTerm, $options: 'i'}},
                 { author: { $in: authorIds } }
             ]
         }
@@ -77,11 +78,12 @@ router.get("/:id", async (req, res) => {  // get one post by id
 
 router.post("/", authMiddleware, async (req, res) => {
     try {
-        const { title, content } = req.body;
+        const { title, content, tags} = req.body;
 
         const newPost = new Post({
             title,
             content,
+            tags: tags || [],
             author: req.user.userID
         })
 
@@ -114,9 +116,10 @@ router.put("/:id", authMiddleware, async (req, res) => {
 
         if (post.author.toString() !== req.user.userID) return res.status(403).json({ message: "invalid auth" });
 
-        const { title, content } = req.body;
+        const { title, content, tags} = req.body;
         if (title) post.title = title;
         if (content) post.content = content;
+        if (tags) post.tags = tags;
 
         const updatedPost = await post.save();
 

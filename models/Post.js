@@ -24,7 +24,8 @@ const postSchema = new mongoose.Schema({
     comments : [commentSchema],
     commentCount : {type:Number, default:0},
     likes : [{type: mongoose.Schema.Types.ObjectId,ref : 'User',}],
-    likeCount : {type:Number, default:0}
+    likeCount : {type:Number, default:0},
+    tags : {type:[String],default:[]}
 },{timestamps:true})
 
 
