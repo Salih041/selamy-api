@@ -9,7 +9,7 @@ const router = express.Router();
 router.post("/register", [
     body("username").trim().notEmpty().withMessage("Username is required").isLength({ min: 3 }).withMessage("Username must be at least 3 characters"),
     body("email").trim().isEmail().withMessage("Invalid Email").normalizeEmail(),
-    body("password").isLength({ min: 6 }).withMessage("Password must be at least 6 characters").matches(/\d/).withMessage("Password must contain at least one number")
+    body("password").isLength({ min: 6 }).withMessage("Password must be at least 6 characters").matches(/\d/).withMessage("Password must contain at least one number").matches(/[a-z]/).withMessage("Password must contain at least one letter").matches(/[A-Z]/).withMessage("Password must contain at least one capital letter")
 ],
     async (req, res) => {
         try {
