@@ -94,7 +94,7 @@ router.get("/:id", async (req, res) => {  // get one post by id
 router.post("/", authMiddleware,
     [
         body("title").trim().notEmpty().withMessage("Title is required").isLength({ max: 40 }).withMessage("Title must be 40 characters maximum."),
-        body("content").trim().notEmpty().withMessage("Content is required").isLength({ max: 20000 }).withMessage("Content must be 20000 characters maximum.")
+        body("content").trim().notEmpty().withMessage("Content is required").isLength({ max: 80000 }).withMessage("Content must be 20000 characters maximum.")
     ],
     async (req, res) => {
         try {
@@ -138,7 +138,7 @@ router.delete("/:id", authMiddleware, async (req, res) => {
 router.put("/:id", authMiddleware,
     [
         body("title").trim().notEmpty().withMessage("Title is required").isLength({ max: 40 }).withMessage("Title must be 40 characters maximum."),
-        body("content").trim().notEmpty().withMessage("Content is required").isLength({ max: 20000 }).withMessage("Content must be 20000 characters maximum.")
+        body("content").trim().notEmpty().withMessage("Content is required").isLength({ max: 80000 }).withMessage("Content must be 20000 characters maximum.")
     ],
     async (req, res) => {
         try {
