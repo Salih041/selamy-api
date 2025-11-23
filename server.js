@@ -8,8 +8,27 @@ import authRoutes from "./routes/auth.js"
 import postRoutes from "./routes/posts.js"
 import userRoutes from "./routes/users.js"
 
+
 dotenv.config();
 const app = express();
+/* //! DEPLOYMENT
+const allowedOrigins = [
+    "http://localhost:5173", // Test
+    "https://my-project.vercel.app" // url
+];
+
+app.use(cors({
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('CORS block: This domain is not allowed!'));
+        }
+    }
+}));
+*/
+app.use(cors());
+
 const PORT = process.env.PORT || 3000;
 const dburl = process.env.MONGO_URL;
 
@@ -22,7 +41,6 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 app.use(helmet());
-app.use(cors());
 app.use(express.json());
 
 mongoose.connect(dburl)
