@@ -3,6 +3,7 @@ import Post from "../models/Post.js";
 import User from "../models/User.js";
 import authMiddleware from "../middlewares/authMiddleware.js";
 import upload from "../middlewares/uploadMiddleware.js";
+import { body, validationResult } from "express-validator";
 
 const router = express.Router();
 
@@ -44,12 +45,12 @@ router.get("/search", async (req, res) => {  //search post
         const authorIds = users.map(user => user._id);
 
         const regex = new RegExp(safeSearchTerm, 'i');
-        
+
         const queryFilter = {
             $or: [
                 { title: { $regex: safeSearchTerm, $options: 'i' } },
                 { content: { $regex: safeSearchTerm, $options: 'i' } },
-                { tags: { $in : [regex]}},
+                { tags: { $in: [regex] } },
                 { author: { $in: authorIds } }
             ]
         }
@@ -70,13 +71,12 @@ router.get("/search", async (req, res) => {  //search post
     }
 })
 
-router.get("/user/:userId", async (req,res)=>{
-    try{
-        const posts = await Post.find({author : req.params.userId}).populate("author","username").sort({createdAt:-1});
+router.get("/user/:userId", async (req, res) => {
+    try {
+        const posts = await Post.find({ author: req.params.userId }).populate("author", "username").sort({ createdAt: -1 });
         res.status(200).json(posts)
-    }catch(error)
-    {
-        res.status(500).json({error: error.message})
+    } catch (error) {
+        res.status(500).json({ error: error.message })
     }
 })
 
@@ -91,23 +91,34 @@ router.get("/:id", async (req, res) => {  // get one post by id
     }
 })
 
-router.post("/", authMiddleware, async (req, res) => {
-    try {
-        const { title, content, tags} = req.body;
+router.post("/", authMiddleware,
+    [
+        body("title").trim().notEmpty().withMessage("Title is required").isLength({ max: 40 }).withMessage("Title must be 40 characters maximum."),
+        body("content").trim().notEmpty().withMessage("Content is required").isLength({ max: 20000 }).withMessage("Content must be 20000 characters maximum.")
+    ],
+    async (req, res) => {
+        try {
 
-        const newPost = new Post({
-            title,
-            content,
-            tags: tags || [],
-            author: req.user.userID
-        })
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                return res.status(400).json({ message: errors.array()[0].msg });
+            }
 
-        const savedPost = await newPost.save();
-        res.status(201).json({ savedPost });
-    } catch (error) {
-        res.status(500).json({ error: error.message })
-    }
-})
+            const { title, content, tags } = req.body;
+
+            const newPost = new Post({
+                title,
+                content,
+                tags: tags || [],
+                author: req.user.userID
+            })
+
+            const savedPost = await newPost.save();
+            res.status(201).json({ savedPost });
+        } catch (error) {
+            res.status(500).json({ error: error.message })
+        }
+    })
 
 router.delete("/:id", authMiddleware, async (req, res) => {
     try {
@@ -124,26 +135,37 @@ router.delete("/:id", authMiddleware, async (req, res) => {
     }
 })
 
-router.put("/:id", authMiddleware, async (req, res) => {
-    try {
-        const post = await Post.findById(req.params.id);
-        if (!post) return res.status(404).json({ message: "Post Not Found" });
+router.put("/:id", authMiddleware,
+    [
+        body("title").trim().notEmpty().withMessage("Title is required").isLength({ max: 40 }).withMessage("Title must be 40 characters maximum."),
+        body("content").trim().notEmpty().withMessage("Content is required").isLength({ max: 20000 }).withMessage("Content must be 20000 characters maximum.")
+    ],
+    async (req, res) => {
+        try {
 
-        if (post.author.toString() !== req.user.userID) return res.status(403).json({ message: "invalid auth" });
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                return res.status(400).json({ message: errors.array()[0].msg });
+            }
 
-        const { title, content, tags} = req.body;
-        if (title) post.title = title;
-        if (content) post.content = content;
-        if (tags) post.tags = tags;
+            const post = await Post.findById(req.params.id);
+            if (!post) return res.status(404).json({ message: "Post Not Found" });
 
-        const updatedPost = await post.save();
+            if (post.author.toString() !== req.user.userID) return res.status(403).json({ message: "invalid auth" });
 
-        res.status(200).json(updatedPost)
+            const { title, content, tags } = req.body;
+            if (title) post.title = title;
+            if (content) post.content = content;
+            if (tags) post.tags = tags;
 
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-})
+            const updatedPost = await post.save();
+
+            res.status(200).json(updatedPost)
+
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    })
 
 router.post("/:id/comment", authMiddleware, async (req, res) => {
     try {
