@@ -11,12 +11,12 @@ import userRoutes from "./routes/users.js"
 
 dotenv.config();
 const app = express();
-/* //! DEPLOYMENT
+
+//! DEPLOYMENT cors settings
 const allowedOrigins = [
     "http://localhost:5173", // Test
-    "https://my-project.vercel.app" // url
+    "https://selamy.vercel.app" // url
 ];
-
 app.use(cors({
     origin: (origin, callback) => {
         if (!origin || allowedOrigins.includes(origin)) {
@@ -26,8 +26,6 @@ app.use(cors({
         }
     }
 }));
-*/
-app.use(cors());
 
 const PORT = process.env.PORT || 3000;
 const dburl = process.env.MONGO_URL;
