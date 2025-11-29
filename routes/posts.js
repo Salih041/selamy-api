@@ -94,7 +94,7 @@ router.get("/:id", async (req, res) => {  // get one post by id
 router.post("/", authMiddleware,
     [
         body("title").trim().notEmpty().withMessage("Title is required").isLength({ max: 40 }).withMessage("Title must be 40 characters maximum."),
-        body("content").trim().notEmpty().withMessage("Content is required").isLength({ max: 80000 }).withMessage("Content must be 20000 characters maximum.")
+        body("content").trim().notEmpty().withMessage("Content is required").isLength({min:200, max: 80000 }).withMessage("Content must be at least 200 and at most 20000 characters.")
     ],
     async (req, res) => {
         try {
