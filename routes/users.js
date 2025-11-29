@@ -71,4 +71,28 @@ router.put("/update/:id", authMiddleware, upload.single('profilePicture'), async
     }
 })
 
+router.delete("/:id",authMiddleware,async(req,res)=>{
+    try{
+        if (req.user.userID !== req.params.id) {
+            return res.status(403).json({ message: "You cannot make transactions outside of your own account!" });
+        }
+        const user = await User.findById(req.params.id);
+        if(!user) return res.status(404).json({message : "User not found"});
+
+        if (user.profilePicture) {
+            const publicId = getPublicIdFromUrl(user.profilePicture);
+            if (publicId) {
+                await cloudinary.uploader.destroy(publicId);
+            }
+        }
+
+        await Post.deleteMany({ author: user._id });
+        await User.findByIdAndDelete(req.params.id);
+
+        res.status(200).json({ message: "Your account and all your posts have been successfully deleted." });
+    }catch(error){
+        res.status(500).json({error:error.message})
+    }
+})
+
 export default router;
