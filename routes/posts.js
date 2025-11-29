@@ -178,7 +178,7 @@ router.post("/:id/comment", authMiddleware, async (req, res) => {
 
         const mentionRegex = /@(\w+)/g;
         const matches = text.match(mentionRegex) || [];
-        const usernames = matches.map(m => m.slice(1));
+        const usernames = matches.map(m => m.slice(1).toLowerCase());
 
         let mentionIds = [];
         if (usernames.length > 0) {
@@ -204,7 +204,7 @@ router.post("/:id/comment", authMiddleware, async (req, res) => {
         const addedComment = post.comments[post.comments.length - 1];
 
         //notif
-        
+
         res.status(200).json(addedComment);
     } catch (error) {
         res.status(500).json({ error: error.message })
