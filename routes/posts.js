@@ -3,6 +3,7 @@ import Post from "../models/Post.js";
 import User from "../models/User.js";
 import authMiddleware from "../middlewares/authMiddleware.js";
 import upload from "../middlewares/uploadMiddleware.js";
+import Notification from "../models/Notification.js";
 import { body, validationResult } from "express-validator";
 
 const router = express.Router();
@@ -184,6 +185,19 @@ router.post("/:id/comment", authMiddleware, async (req, res) => {
         if (usernames.length > 0) {
             const mentionedUsers = await User.find({ username: { $in: usernames } }).select("_id");
             mentionIds = mentionedUsers.map(user => user._id);
+
+            const notificationsToCreate = mentionIds
+                .filter(id => id.toString() !== req.user.userID) 
+                .map(id => ({
+                    recipient: id,
+                    sender: req.user.userID,
+                    type: 'mention',
+                    post: post._id,
+                    commentId: undefined
+                }));
+            if (notificationsToCreate.length > 0) {
+                await Notification.insertMany(notificationsToCreate);
+            }
         }
 
         const comment = {
