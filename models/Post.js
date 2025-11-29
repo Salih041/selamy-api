@@ -8,6 +8,14 @@ const commentSchema = new mongoose.Schema({
         ref : 'User',
         required : true
     },
+
+    mentions : [
+        {
+            type:mongoose.Schema.Types.ObjectId,
+            ref: 'User'
+        }
+    ],
+
     likes : [{type:mongoose.Schema.Types.ObjectId,ref : 'User'}],
     likeCount : {type:Number, default:0}
 },{timestamps:true})

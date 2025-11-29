@@ -176,9 +176,20 @@ router.post("/:id/comment", authMiddleware, async (req, res) => {
         const post = await Post.findById(req.params.id);
         if (!post) return res.status(404).json({ message: "Post Not FOund" });
 
+        const mentionRegex = /@(\w+)/g;
+        const matches = text.match(mentionRegex) || [];
+        const usernames = matches.map(m => m.slice(1));
+
+        let mentionIds = [];
+        if (usernames.length > 0) {
+            const mentionedUsers = await User.find({ username: { $in: usernames } }).select("_id");
+            mentionIds = mentionedUsers.map(user => user._id);
+        }
+
         const comment = {
             text: text,
-            author: req.user.userID
+            author: req.user.userID,
+            mentions : mentionIds
         }
 
         post.comments.push(comment);
@@ -187,10 +198,13 @@ router.post("/:id/comment", authMiddleware, async (req, res) => {
 
         await post.populate({
             path: 'comments.author',
-            select: 'username'
+            select: 'username profilePicture'
         });
 
         const addedComment = post.comments[post.comments.length - 1];
+
+        //notif
+        
         res.status(200).json(addedComment);
     } catch (error) {
         res.status(500).json({ error: error.message })
