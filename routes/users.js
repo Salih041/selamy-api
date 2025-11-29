@@ -44,6 +44,7 @@ router.put("/update/:id", authMiddleware, upload.single('profilePicture'), async
 
         const updates = {
             bio: req.body.bio,
+            displayName: req.body.displayName,
             // useranme?
         };
 

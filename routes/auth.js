@@ -9,7 +9,7 @@ import rateLimit from "express-rate-limit";
 const router = express.Router();
 const forgotPasswordLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 3, 
+    max: 3,
     message: { message: "Too many requests. Please try again after 15 minutes." }
 });
 
@@ -41,6 +41,7 @@ router.post("/register", [
             const newUser = new User({
                 username,
                 email,
+                displayName: username,
                 password: hashedPassword,
                 isVerified: false,
                 verificationToken: verificationCode,
@@ -139,7 +140,7 @@ router.post("/login",
         }
     })
 
-router.post("/forgot-password",forgotPasswordLimiter, async (req, res) => {
+router.post("/forgot-password", forgotPasswordLimiter, async (req, res) => {
     try {
         const { email } = req.body;
         const user = await User.findOne({ email });

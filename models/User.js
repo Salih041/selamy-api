@@ -5,6 +5,12 @@ const userSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true, trim: true, lowercase: true },
     password: { type: String, required: true },
 
+    displayName: { 
+        type: String, 
+        trim: true,
+        maxLength: 50 
+    },
+
     isVerified: {
         type: Boolean,
         default: false
