@@ -83,7 +83,7 @@ router.get("/user/:userId", async (req, res) => {
 
 router.get("/:id", async (req, res) => {  // get one post by id
     try {
-        const post = await Post.findById(req.params.id).populate("author", "username profilePicture displayName").populate({ path: "comments.author", select: "username profilePicture displayName" });
+        const post = await Post.findById(req.params.id).populate("author", "username profilePicture displayName").populate({ path: "comments.author", select: "username profilePicture displayName " }).populate("likes","username profilePicture displayName");
         if (!post) return res.status(404).json({ message: "Post Not found" });
 
         res.status(200).json(post);
@@ -225,8 +225,6 @@ router.post("/:id/comment", authMiddleware, async (req, res) => {
         });
 
         const addedComment = post.comments[post.comments.length - 1];
-
-        //notif
 
         res.status(200).json(addedComment);
     } catch (error) {
