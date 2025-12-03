@@ -23,7 +23,18 @@ const userSchema = new mongoose.Schema({
 
     profilePicture : {type: String, default:""},
     bio : {type: String, default:"", maxLength:140},
-    createdAt: { type: Date, default: Date.now }
+    createdAt: { type: Date, default: Date.now },
+
+    followers : [{type:mongoose.Schema.Types.ObjectId, ref:'User'}],
+    following : [{type:mongoose.Schema.Types.ObjectId, ref:'User'}],
+    savedPosts : [{type:mongoose.Schema.Types.ObjectId, ref:'Post'}],
+    likedPosts: [{type:mongoose.Schema.Types.ObjectId, ref:'Post'}],
+
+    socials : {
+        x : {type:String, default:''},
+        instagram : {type:String, default : ''},
+        github : {type:String, default : ''}
+    }
 }, { timestamps: true })
 
 userSchema.index({ createdAt: 1 }, { 

@@ -5,8 +5,32 @@ import authMiddleware from "../middlewares/authMiddleware.js";
 import upload from "../middlewares/uploadMiddleware.js";
 import Notification from "../models/Notification.js";
 import { body, validationResult } from "express-validator";
+import mongoose from "mongoose";
 
 const router = express.Router();
+
+
+// SLUGIFY
+const slugify = (text) => {
+    const trMap = { 'ç': 'c', 'ğ': 'g', 'ş': 's', 'ü': 'u', 'ö': 'o', 'ı': 'i', 'İ': 'i', 'I': 'i', 'Ö': 'o', 'Ü': 'u', 'Ş': 's', 'Ğ': 'g', 'Ç': 'c' };
+    return text
+        .toLowerCase()
+        .split('')
+        .map(char => trMap[char] || char)
+        .join('')
+        .replace(/[^-a-zA-Z0-9\s]+/ig, '')
+        .replace(/\s/gi, "-")
+        .replace(/-+/g, "-")
+        .trim();
+};
+
+const findPostByIdOrSlug = async (id) => {
+    if (mongoose.Types.ObjectId.isValid(id)) {
+        const post = await Post.findById(id);
+        if (post) return post;
+    }
+    return await Post.findOne({ slug: id });
+};
 
 router.get("/", async (req, res) => {   // get all posts
     try {
@@ -83,8 +107,19 @@ router.get("/user/:userId", async (req, res) => {
 
 router.get("/:id", async (req, res) => {  // get one post by id
     try {
-        const post = await Post.findById(req.params.id).populate("author", "username profilePicture displayName").populate({ path: "comments.author", select: "username profilePicture displayName " }).populate("likes","username profilePicture displayName");
-        if (!post) return res.status(404).json({ message: "Post Not found" });
+        const id  = req.params.id;
+        let post;
+        if (mongoose.Types.ObjectId.isValid(id)) {  // id
+            post = await Post.findById(id).populate("author", "username profilePicture displayName").populate({ path: "comments.author", select: "username profilePicture displayName " }).populate("likes", "username profilePicture displayName");
+        }
+        if(!post) // slug
+        {
+            post = await Post.findOne({ slug: id })
+                .populate("author", "username profilePicture displayName")
+                .populate({ path: "comments.author", select: "username profilePicture displayName" })
+                .populate("likes", "username profilePicture displayName");
+        }
+        if (!post) {console.log("BU LOG ÇALIŞIYOR"); return res.status(404).json({ message: "Post Not found" });}
 
         res.status(200).json(post);
     } catch (error) {
@@ -106,12 +141,23 @@ router.post("/", authMiddleware,
             }
 
             const { title, content, tags } = req.body;
+            let slug = slugify(title);
+            let isUnique = false;
+            while (!isUnique) {
+                const existingPost = await Post.findOne({ slug });
+                if (!existingPost) {
+                    isUnique = true;
+                } else {
+                    slug = `${slug}-${Math.floor(Math.random() * 1000)}`;
+                }
+            }
 
             const newPost = new Post({
                 title,
                 content,
                 tags: tags || [],
-                author: req.user.userID
+                author: req.user.userID,
+                slug: slug
             })
 
             const savedPost = await newPost.save();
@@ -123,7 +169,7 @@ router.post("/", authMiddleware,
 
 router.delete("/:id", authMiddleware, async (req, res) => {
     try {
-        const post = await Post.findById(req.params.id);
+        const post = await findPostByIdOrSlug(req.params.id)
         if (!post) return res.status(404).json({ message: "Post not found" });
 
         if (post.author.toString() !== req.user.userID) return res.status(403).json({ message: "invalid auth" });
@@ -149,7 +195,7 @@ router.put("/:id", authMiddleware,
                 return res.status(400).json({ message: errors.array()[0].msg });
             }
 
-            const post = await Post.findById(req.params.id);
+            const post = await findPostByIdOrSlug(req.params.id);
             if (!post) return res.status(404).json({ message: "Post Not Found" });
 
             if (post.author.toString() !== req.user.userID) return res.status(403).json({ message: "invalid auth" });
@@ -174,7 +220,7 @@ router.post("/:id/comment", authMiddleware, async (req, res) => {
 
         if (!text) return res.status(400).json({ message: "text required" });
 
-        const post = await Post.findById(req.params.id);
+        const post = await findPostByIdOrSlug(req.params.id)
         if (!post) return res.status(404).json({ message: "Post Not FOund" });
 
         const mentionRegex = /@(\w+)/g;
@@ -234,7 +280,7 @@ router.post("/:id/comment", authMiddleware, async (req, res) => {
 
 router.delete("/:id/comment/:commentid", authMiddleware, async (req, res) => {
     try {
-        const post = await Post.findById(req.params.id);
+        const post = await findPostByIdOrSlug(req.params.id)
         if (!post) return res.status(404).json({ message: "Post Not FOund" });
 
         const comment = post.comments.id(req.params.commentid);
@@ -256,7 +302,7 @@ router.delete("/:id/comment/:commentid", authMiddleware, async (req, res) => {
 
 router.put("/:id/comment/:commentid", authMiddleware, async (req, res) => {
     try {
-        const post = await Post.findById(req.params.id);
+        const post = await findPostByIdOrSlug(req.params.id)
         if (!post) return res.status(404).json({ message: "Post Not FOund" });
 
         const comment = post.comments.id(req.params.commentid);
@@ -276,7 +322,7 @@ router.put("/:id/comment/:commentid", authMiddleware, async (req, res) => {
 
 router.put("/:id/comment/:commentid/like", authMiddleware, async (req, res) => {
     try {
-        const post = await Post.findById(req.params.id);
+        const post = await findPostByIdOrSlug(req.params.id)
         if (!post) return res.status(404).json({ message: "Post not found" });
 
         const comment = post.comments.id(req.params.commentid);
@@ -315,7 +361,7 @@ router.put("/:id/comment/:commentid/like", authMiddleware, async (req, res) => {
 
 router.put("/:id/like", authMiddleware, async (req, res) => {
     try {
-        const post = await Post.findById(req.params.id);
+        const post = await findPostByIdOrSlug(req.params.id)
         if (!post) return res.status(404).json({ message: "Post Not Found" });
 
         const userId = req.user.userID;
