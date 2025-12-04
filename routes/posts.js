@@ -38,8 +38,8 @@ router.get("/", async (req, res) => {   // get all posts
         const limit = parseInt(req.query.limit) || 20;
         const skipIndex = (page - 1) * limit;
 
-        const posts = await Post.find().populate("author", "username profilePicture displayName").select("-comments -likes").sort({ createdAt: -1 }).skip(skipIndex).limit(limit)
-        const totalResults = await Post.countDocuments({});
+        const posts = await Post.find({ statu: 'published' }).populate("author", "username profilePicture displayName").select("-comments -likes").sort({ createdAt: -1 }).skip(skipIndex).limit(limit)
+        const totalResults = await Post.countDocuments({ statu: 'published' });
 
         res.status(200).json({
             data: posts,
@@ -76,7 +76,8 @@ router.get("/search", async (req, res) => {  //search post
                 { title: { $regex: safeSearchTerm, $options: 'i' } },
                 { content: { $regex: safeSearchTerm, $options: 'i' } },
                 { tags: { $in: [regex] } },
-                { author: { $in: authorIds } }
+                { author: { $in: authorIds } },
+                { statu: 'published' }
             ]
         }
         const posts = await Post.find(queryFilter).populate("author", "username profilePicture displayName").select("-comments -likes").sort({ createdAt: -1 }).skip(skipIndex).limit(limit)
@@ -98,28 +99,43 @@ router.get("/search", async (req, res) => {  //search post
 
 router.get("/user/:userId", async (req, res) => {
     try {
-        const posts = await Post.find({ author: req.params.userId }).populate("author", "username displayName profilePicture").sort({ createdAt: -1 });
+        let filter = { author: req.params.userId };
+        filter.statu = 'published'
+
+        const posts = await Post.find(filter).populate("author", "username displayName profilePicture").sort({ createdAt: -1 });
         res.status(200).json(posts)
     } catch (error) {
         res.status(500).json({ error: error.message })
     }
 })
 
+router.get("/my/drafts", authMiddleware, async (req, res) => {
+    try {
+        const drafts = await Post.find({
+            author: req.user.userID,
+            statu: 'draft'
+        }).sort({ createdAt: -1 });
+        res.status(200).json(drafts)
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+})
+
 router.get("/:id", async (req, res) => {  // get one post by id
     try {
-        const id  = req.params.id;
+        const id = req.params.id;
         let post;
         if (mongoose.Types.ObjectId.isValid(id)) {  // id
             post = await Post.findById(id).populate("author", "username profilePicture displayName").populate({ path: "comments.author", select: "username profilePicture displayName " }).populate("likes", "username profilePicture displayName");
         }
-        if(!post) // slug
+        if (!post) // slug
         {
             post = await Post.findOne({ slug: id })
                 .populate("author", "username profilePicture displayName")
                 .populate({ path: "comments.author", select: "username profilePicture displayName" })
                 .populate("likes", "username profilePicture displayName");
         }
-        if (!post) {console.log("BU LOG ÇALIŞIYOR"); return res.status(404).json({ message: "Post Not found" });}
+        if (!post) { console.log("BU LOG ÇALIŞIYOR"); return res.status(404).json({ message: "Post Not found" }); }
 
         res.status(200).json(post);
     } catch (error) {
@@ -140,7 +156,7 @@ router.post("/", authMiddleware,
                 return res.status(400).json({ message: errors.array()[0].msg });
             }
 
-            const { title, content, tags } = req.body;
+            const { title, content, tags, statu } = req.body;
             let slug = slugify(title);
             let isUnique = false;
             while (!isUnique) {
@@ -157,7 +173,8 @@ router.post("/", authMiddleware,
                 content,
                 tags: tags || [],
                 author: req.user.userID,
-                slug: slug
+                slug: slug,
+                statu: statu || 'published'
             })
 
             const savedPost = await newPost.save();
@@ -200,10 +217,14 @@ router.put("/:id", authMiddleware,
 
             if (post.author.toString() !== req.user.userID) return res.status(403).json({ message: "invalid auth" });
 
-            const { title, content, tags } = req.body;
+            const { title, content, tags, statu } = req.body;
             if (title) post.title = title;
             if (content) post.content = content;
             if (tags) post.tags = tags;
+            if (statu) post.statu = statu;
+
+            post.isEdited = true;
+            post.editedAt = Date.now();
 
             const updatedPost = await post.save();
 

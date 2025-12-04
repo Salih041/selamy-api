@@ -39,7 +39,13 @@ const postSchema = new mongoose.Schema({
     editedAt : {type:Date},
 
     viewCount : {type:Number, default:0},
-    slug: { type: String, unique: true, sparse: true } // url
+    slug: { type: String, unique: true, sparse: true }, // url
+
+    statu : {
+        type: String,
+        enum : ['published', 'draft'],
+        default : 'published'
+    }
 },{timestamps:true})
 
 
