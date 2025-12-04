@@ -16,7 +16,8 @@ const app = express();
 //! DEPLOYMENT cors settings
 const allowedOrigins = [
     "http://localhost:5173", // Test
-    "https://selamy.vercel.app" // url
+    "https://www.selamy.me",
+    "https://selamy.me" // url
 ];
 app.use(cors({
     origin: (origin, callback) => {
