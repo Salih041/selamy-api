@@ -45,8 +45,44 @@ router.put("/update/:id", authMiddleware, upload.single('profilePicture'), async
         const updates = {
             bio: req.body.bio,
             displayName: req.body.displayName,
-            // useranme?
         };
+
+        if(req.body.socials){
+            let socialData = JSON.parse(req.body.socials);
+
+            const fixUrl = (url)=>{
+                if(!url) return "";
+                let cleanUrl = url.trim();
+                if (cleanUrl.toLowerCase().startsWith("javascript:")) {
+                    return ""; 
+                }
+                if (cleanUrl && !/^https?:\/\//i.test(cleanUrl)) {
+                    cleanUrl = `https://${cleanUrl}`;
+                }
+                return cleanUrl;
+            };
+
+            const validateUrl = (url, allowedDomains)=>{
+                if (!url) return "";
+                const fixedUrl = fixUrl(url);
+                try{
+                    const parsedUrl = new URL(fixedUrl);
+                    const hostname = parsedUrl.hostname.toLowerCase();
+                    const cleanHostname = hostname.replace(/^www\./, '');
+                    const isValid = allowedDomains.some(domain => cleanHostname === domain || cleanHostname.endsWith(`.${domain}`));
+
+                    if(!isValid) return "";
+                    return fixedUrl;
+                }
+                catch(error){
+                    return "";
+                }
+            }
+            if(socialData.x) socialData.x = validateUrl(socialData.x,['x.com']);
+            if(socialData.instagram) socialData.instagram = validateUrl(socialData.instagram,['instagram.com']);
+            if(socialData.github) socialData.github = validateUrl(socialData.github,['github.com']);
+            updates.socials = socialData;
+        }
 
         if (req.file) {
             if (currentUser.profilePicture) {
