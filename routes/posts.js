@@ -234,7 +234,8 @@ router.delete("/:id", authMiddleware, async (req, res) => {
         const post = await findPostByIdOrSlug(req.params.id)
         if (!post) return res.status(404).json({ message: "Post not found" });
 
-        if (post.author.toString() !== req.user.userID) return res.status(403).json({ message: "invalid auth" });
+        const currentUser = await User.findById(req.user.userID);
+        if (post.author.toString() !== req.user.userID && currentUser.role !== 'admin') return res.status(403).json({ message: "invalid auth" });
 
         await post.deleteOne();
         res.status(200).json({ message: "Post deleted" });
@@ -350,13 +351,19 @@ router.delete("/:id/comment/:commentid", authMiddleware, async (req, res) => {
     try {
         const post = await findPostByIdOrSlug(req.params.id)
         if (!post) return res.status(404).json({ message: "Post Not FOund" });
+;
 
         if (post.statu !== 'published') return res.status(403).json({ message: "Cannot comment on unpublished posts." });
 
         const comment = post.comments.id(req.params.commentid);
         if (!comment) return res.status(404).json({ message: "Comment not found" });
 
-        if (!(comment.author.toString() === req.user.userID || post.author.toString() === req.user.userID)) return res.status(403).json({ message: "invalid auth" });
+        const currentUser = await User.findById(req.user.userID);
+        const isOwner = comment.author.toString() === req.user.userID;
+        const isPostOwner = post.author.toString() === req.user.userID;
+        const isAdmin = currentUser.role === 'admin'
+
+        if(!isOwner && !isPostOwner && !isAdmin) return res.status(403).json({ message: "invalid auth" });
 
         comment.deleteOne();
         post.commentCount -= 1;

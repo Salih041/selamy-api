@@ -134,7 +134,7 @@ router.post("/login",
                 { expiresIn: "7d" }
             )
 
-            res.status(200).json({ token, userID: user._id });
+            res.status(200).json({ token, userID: user._id, role: user.role });
         } catch (error) {
             res.status(500).json({ error: error.message });
         }
