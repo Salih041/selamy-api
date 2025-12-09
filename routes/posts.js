@@ -511,11 +511,11 @@ router.put("/:id/save",authMiddleware, async(req,res)=>{
         const currentUser = await User.findById(req.user.userID);
         const hasSaved = currentUser.savedPosts.some(postId=>postId.equals(post._id));
         if(hasSaved){ // already saved
-            currentUser.updateOne({$pull:{savedPosts:post._id}});
+            await currentUser.updateOne({$pull:{savedPosts:post._id}});
             res.status(200).json({message:"Post unsaved successfully!",isSaved:false});
         }
         else{ // not saved yet! SAVE
-            currentUser.updateOne({$push:{savedPosts:post._id}});
+            await currentUser.updateOne({$push:{savedPosts:post._id}});
             res.status(200).json({message:"Post saved successfully!",isSaved:true});
         }
 

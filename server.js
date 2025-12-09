@@ -34,7 +34,7 @@ const dburl = process.env.MONGO_URL;
 
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15min
-    max: 500,
+    max: 200,
     standardHeaders: true,
     legacyHeaders: false,
     message: {
@@ -48,11 +48,10 @@ app.use(express.json());
 
 mongoose.connect(dburl)
     .then(() => {
-        console.log("MongoDB connected");
-        app.listen(PORT, () => { console.log("Server is running on ", PORT) });
+        console.log("DB connected");
+        app.listen(PORT, () => { console.log("Server is running") });
     }).catch((err) => {
-        console.error("MongoDB error");
-        console.error(err);
+        console.error("DB Error : "+err);
         process.exit(1);
     })
 

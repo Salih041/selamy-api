@@ -5,6 +5,7 @@ import { body, validationResult } from "express-validator";
 import User from "../models/User.js";
 import sendEmail from "../utils/email.js";
 import rateLimit from "express-rate-limit";
+import { registerLimiter, loginLimiter, resetPasswordLimiter } from "../middlewares/limiters.js";
 
 const router = express.Router();
 const forgotPasswordLimiter = rateLimit({
@@ -13,7 +14,7 @@ const forgotPasswordLimiter = rateLimit({
     message: { message: "Too many requests. Please try again after 15 minutes." }
 });
 
-router.post("/register", [
+router.post("/register", registerLimiter ,[
     body("username").trim().notEmpty().withMessage("Username is required").isLength({ min: 3, max: 20 }).withMessage("Username must be between 3-20 characters"),
     body("email").trim().isEmail().withMessage("Invalid Email").normalizeEmail(),
     body("password").isLength({ min: 6, max: 72 }).withMessage("Password must be between 6-72 characters").matches(/\d/).withMessage("Password must contain at least one number").matches(/[a-z]/).withMessage("Password must contain at least one letter").matches(/[A-Z]/).withMessage("Password must contain at least one capital letter")
@@ -104,7 +105,7 @@ router.post("/verify-email", async (req, res) => {
 })
 
 
-router.post("/login",
+router.post("/login",loginLimiter,
     [
         body("username").notEmpty().withMessage("Username is required"),
         body("password").notEmpty().withMessage("Password is required")
@@ -140,7 +141,7 @@ router.post("/login",
         }
     })
 
-router.post("/forgot-password", forgotPasswordLimiter, async (req, res) => {
+router.post("/forgot-password",resetPasswordLimiter, forgotPasswordLimiter, async (req, res) => {
     try {
         const { email } = req.body;
         const user = await User.findOne({ email });
