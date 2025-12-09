@@ -12,6 +12,7 @@ import notificationRoutes from "./routes/notifications.js"
 
 dotenv.config();
 const app = express();
+app.set('trust proxy', 1);
 
 //! DEPLOYMENT cors settings
 const allowedOrigins = [
