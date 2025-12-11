@@ -119,10 +119,10 @@ router.post("/login",loginLimiter,
 
             const { username, password } = req.body;
             const user = await User.findOne({ username: username.toLowerCase() });
-            if (!user) return res.status(404).json({ message: "User not found" });
+            if (!user) return res.status(404).json({ message: "Invalid username or password" });
 
             const isPasswordCorrect = await bcrypt.compare(password, user.password);
-            if (!isPasswordCorrect) return res.status(400).json({ message: "Wrong Password" });
+            if (!isPasswordCorrect) return res.status(400).json({ message: "Invalid username or password" });
 
             //verify control
             if (!user.isVerified) {
@@ -141,7 +141,7 @@ router.post("/login",loginLimiter,
         }
     })
 
-router.post("/forgot-password",resetPasswordLimiter, forgotPasswordLimiter, async (req, res) => {
+router.post("/forgot-password",resetPasswordLimiter, async (req, res) => {
     try {
         const { email } = req.body;
         const user = await User.findOne({ email });
@@ -173,7 +173,7 @@ router.post("/forgot-password",resetPasswordLimiter, forgotPasswordLimiter, asyn
                 subject: "Password Reset Code",
                 html: message
             })
-            res.status(200).json({ message: "The reset code has been sent to your email address.", email: user.email });
+            res.status(200).json({ message: "The reset code has been sent to your email address."});
         } catch (emailError) {
             user.resetPasswordToken = undefined;
             user.resetPasswordExpires = undefined;
