@@ -285,7 +285,8 @@ router.put("/:id", authMiddleware,
             const post = await findPostByIdOrSlug(req.params.id);
             if (!post) return res.status(404).json({ message: "Post Not Found" });
 
-            if (post.author.toString() !== req.user.userID) return res.status(403).json({ message: "invalid auth" });
+            const currentUser = await User.findById(req.user.userID);
+            if (post.author.toString() !== req.user.userID && currentUser.role !== 'admin') return res.status(403).json({ message: "invalid auth" });
 
             const { title, content, tags, statu } = req.body;
             if (title) post.title = title;
