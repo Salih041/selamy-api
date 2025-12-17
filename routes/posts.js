@@ -264,6 +264,15 @@ router.delete("/:id", authMiddleware, async (req, res) => {
         if (post.author.toString() !== req.user.userID && currentUser.role !== 'admin') return res.status(403).json({ message: "invalid auth" });
 
         await post.deleteOne();
+
+        if (currentUser.role === "admin") {
+            Notification.create({
+                recipient: post.author,
+                sender: req.user.userID,
+                type: 'delete',
+            })
+        }
+
         res.status(200).json({ message: "Post deleted" });
 
     } catch (error) {
@@ -298,7 +307,18 @@ router.put("/:id", authMiddleware,
                 post.isEdited = true;
                 post.editedAt = Date.now();
             }
-            if (statu) post.statu = statu;
+            if (statu) {
+                post.statu = statu;
+                if (statu === "draft" && currentUser.role === "admin") // admin -> unpublish
+                {
+                    Notification.create({
+                        recipient: post.author,
+                        sender: req.user.userID,
+                        type: 'unpublish',
+                        post: post._id
+                    })
+                }
+            }
             if (post.firstPublishDate === null && statu === "published") {
                 post.firstPublishDate = Date.now()
             }
@@ -400,6 +420,16 @@ router.delete("/:id/comment/:commentid", authMiddleware, async (req, res) => {
         post.commentCount -= 1;
 
         const savedpost = await post.save()
+
+        if (isAdmin) {
+            await Notification.create({
+                recipient: comment.author,
+                sender: req.user.userID,
+                type: 'delete',
+                post: post._id
+            })
+        }
+
 
         res.status(200).json(savedpost);
 
