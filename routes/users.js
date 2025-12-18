@@ -37,6 +37,7 @@ const getPublicIdFromUrl = (url) => {
 
 router.put("/update/:id", authMiddleware, upload.single('profilePicture'), async (req, res) => {
     try {
+        const {bio , displayName} = req.body;
         if (req.user.userID !== req.params.id) {
             return res.status(403).json({ message: "You can only edit your own account." });
         }
@@ -44,9 +45,17 @@ router.put("/update/:id", authMiddleware, upload.single('profilePicture'), async
         const currentUser = await User.findById(req.params.id);
         if (!currentUser) return res.status(404).json({ message: "User not found" });
 
+        const cleanBio = sanitizeHtml(bio, {
+            allowedTags: [], 
+            allowedAttributes: {} 
+        });
+        const cleanDisplayName = sanitizeHtml(displayName, {
+            allowedTags : [],
+            allowedAttributes : {}
+        });
         const updates = {
-            bio: req.body.bio,
-            displayName: req.body.displayName,
+            bio: cleanBio,
+            displayName: cleanDisplayName,
         };
 
         if(req.body.socials){

@@ -15,7 +15,7 @@ const forgotPasswordLimiter = rateLimit({
 });
 
 router.post("/register", registerLimiter ,[
-    body("username").trim().notEmpty().withMessage("Username is required").isLength({ min: 3, max: 20 }).withMessage("Username must be between 3-20 characters"),
+    body("username").trim().notEmpty().withMessage("Username is required").isLength({ min: 3, max: 20 }).withMessage("Username must be between 3-20 characters").matches(/^[a-zA-Z0-9_]+$/).withMessage("Username can only contain only letters,numbers and underscore"),
     body("email").trim().isEmail().withMessage("Invalid Email").normalizeEmail(),
     body("password").isLength({ min: 6, max: 72 }).withMessage("Password must be between 6-72 characters").matches(/\d/).withMessage("Password must contain at least one number").matches(/[a-z]/).withMessage("Password must contain at least one letter").matches(/[A-Z]/).withMessage("Password must contain at least one capital letter")
 ],

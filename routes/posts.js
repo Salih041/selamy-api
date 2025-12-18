@@ -7,6 +7,7 @@ import Notification from "../models/Notification.js";
 import { body, validationResult } from "express-validator";
 import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
+import sanitizeHtml from "sanitize-html";
 
 const router = express.Router();
 
@@ -60,6 +61,10 @@ router.get("/search", async (req, res) => {  //search post
     try {
         const searchTerm = req.query.q;
         if (!searchTerm) return res.status(400).json({ message: "term required" });
+        
+        if (typeof searchTerm !== 'string') {
+            searchTerm = String(searchTerm);
+        }
 
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
@@ -214,7 +219,8 @@ router.get("/:id", async (req, res) => {  // get one post by id
 router.post("/", authMiddleware,
     [
         body("title").trim().notEmpty().withMessage("Title is required").isLength({ max: 40 }).withMessage("Title must be 40 characters maximum."),
-        body("content").trim().notEmpty().withMessage("Content is required").isLength({ min: 200, max: 80000 }).withMessage("Content must be at least 200 and at most 20000 characters.")
+        body("content").trim().notEmpty().withMessage("Content is required").isLength({ min: 200, max: 80000 }).withMessage("Content must be at least 200 and at most 20000 characters."),
+        body("tags").optional().isArray().withMessage("Tags must be an array")
     ],
     async (req, res) => {
         try {
@@ -236,10 +242,33 @@ router.post("/", authMiddleware,
                 }
             }
 
+            const cleanContent = sanitizeHtml(content, {
+                allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img']),
+                allowedAttributes: {
+                    '*': ['style', 'class'],
+                    'a': ['href', 'name', 'target'],
+                    'img': ['src']
+                }
+            });
+            const cleanTitle = sanitizeHtml(title, {
+                allowedTags: [],
+                allowedAttributes: {}
+            })
+            let cleanTags = []
+            if (Array.isArray(tags)) {
+                cleanTags = tags.map(tag => {
+                    return sanitizeHtml(String(tag), {
+                        allowedTags: [],
+                        allowedAttributes: {}
+                    }).trim();
+                })
+                    .filter(tag => tag.length > 0);
+            }
+
             const newPost = new Post({
-                title,
-                content,
-                tags: tags || [],
+                title: cleanTitle,
+                content: cleanContent,
+                tags: cleanTags || [],
                 author: req.user.userID,
                 slug: slug,
                 statu: statu || 'published'
@@ -300,9 +329,37 @@ router.put("/:id", authMiddleware,
             if (post.author.toString() !== req.user.userID && currentUser.role !== 'admin') return res.status(403).json({ message: "invalid auth" });
 
             const { title, content, tags, statu } = req.body;
-            if (title) post.title = title;
-            if (content) post.content = content;
-            if (tags) post.tags = tags;
+            if (title) {
+                const cleanTitle = sanitizeHtml(title, {
+                    allowedTags: [],
+                    allowedAttributes: {}
+                })
+                post.title = cleanTitle;
+            }
+            if (content) {
+                const cleanContent = sanitizeHtml(content, {
+                    allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img']),
+                    allowedAttributes: {
+                        '*': ['style', 'class'],
+                        'a': ['href', 'name', 'target'],
+                        'img': ['src']
+                    }
+                });
+                post.content = cleanContent;
+            }
+            if (tags) {
+                let cleanTags = []
+                if (Array.isArray(tags)) {
+                    cleanTags = tags.map(tag => {
+                        return sanitizeHtml(String(tag), {
+                            allowedTags: [],
+                            allowedAttributes: {}
+                        }).trim();
+                    })
+                        .filter(tag => tag.length > 0);
+                }
+                post.tags = cleanTags;
+            }
             if (!(post.firstPublishDate === null)) {
                 post.isEdited = true;
                 post.editedAt = Date.now();
@@ -366,9 +423,12 @@ router.post("/:id/comment", authMiddleware, async (req, res) => {
                 await Notification.insertMany(notificationsToCreate);
             }
         }
-
+        const cleanText = sanitizeHtml(text, {
+            allowedTags: [],
+            allowedAttributes: {}
+        });
         const comment = {
-            text: text,
+            text: cleanText,
             author: req.user.userID,
             mentions: mentionIds
         }
@@ -451,7 +511,11 @@ router.put("/:id/comment/:commentid", authMiddleware, async (req, res) => {
         if (!(comment.author.toString() === req.user.userID)) return res.status(403).json({ message: "invalid auth" });
 
         const { text } = req.body;
-        comment.text = text;
+        const cleanText = sanitizeHtml(text, {
+            allowedTags: [],
+            allowedAttributes: {}
+        });
+        comment.text = cleanText;
 
         const updatedPost = await post.save();
         res.status(200).json(updatedPost);

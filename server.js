@@ -10,6 +10,7 @@ import userRoutes from "./routes/users.js"
 import notificationRoutes from "./routes/notifications.js"
 
 
+
 dotenv.config();
 const app = express();
 app.set('trust proxy', 1);
@@ -20,6 +21,7 @@ const allowedOrigins = [
     "https://www.selamy.me",
     "https://selamy.me" // url
 ];
+
 app.use(cors({
     origin: (origin, callback) => {
         if (origin && allowedOrigins.includes(origin)) {
@@ -43,9 +45,30 @@ const limiter = rateLimit({
         message: "Too many requests. Please try again in 15 minutes."
     }
 });
+
 app.use(limiter);
 app.use(helmet());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+const mongoSanitizeMiddleware = (req, res, next) => {
+    const sanitize = (obj) => {
+        if (!obj || typeof obj !== 'object') return;
+        
+        for (let key in obj) {
+            if (key.startsWith('$') || key.includes('.')) {
+                delete obj[key];
+            } else {
+                sanitize(obj[key]);
+            }
+        }
+    };
+    sanitize(req.body);   
+    sanitize(req.params);    
+    next();
+};
+app.use(mongoSanitizeMiddleware);
+
 
 mongoose.connect(dburl)
     .then(() => {
