@@ -29,7 +29,7 @@ router.post("/register", registerLimiter ,[
 
             const { username, email, password } = req.body;
 
-            const existingUser = await User.findOne({ $or: [{ username: username }, { email: email }] });
+            const existingUser = await User.findOne({ $or: [{ username: username.toLowerCase() }, { email: email.toLowerCase() }] });
             if (existingUser) {
                 return res.status(400).json({ message: "This username or email is already taken" });
             }
