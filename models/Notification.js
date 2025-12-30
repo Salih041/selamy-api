@@ -16,6 +16,10 @@ const notificationSchema = new mongoose.Schema({
         enum: ['mention', 'follow', 'like', 'comment','delete', 'unpublish'], 
         default: 'mention' 
     },
+    message : {
+        type : String,
+        default : ""
+    },
     post: { 
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'Post' 

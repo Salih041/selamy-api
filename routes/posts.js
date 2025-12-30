@@ -351,11 +351,13 @@ router.delete("/:id", authMiddleware, async (req, res) => {
 
         await post.deleteOne();
 
-        if (currentUser.role === "admin") {
-            Notification.create({
+        if (currentUser.role === "admin"  && currentUser._id.toString() !== post.author.toString()) {
+            const reasonMessage = req.query.reason || "";
+            await Notification.create({
                 recipient: post.author,
                 sender: req.user.userID,
                 type: 'delete',
+                message : reasonMessage
             })
         }
 
@@ -423,13 +425,15 @@ router.put("/:id", authMiddleware,
             }
             if (statu) {
                 post.statu = statu;
-                if (statu === "draft" && currentUser.role === "admin") // admin -> unpublish
+                if (statu === "draft" && currentUser.role === "admin" && currentUser._id.toString() !== post.author.toString()) // admin -> unpublish
                 {
-                    Notification.create({
+                    const reasonMessage = req.query.reason || "";
+                    await Notification.create({
                         recipient: post.author,
                         sender: req.user.userID,
                         type: 'unpublish',
-                        post: post._id
+                        post: post._id,
+                        message : reasonMessage
                     })
                 }
             }
@@ -538,12 +542,14 @@ router.delete("/:id/comment/:commentid", authMiddleware, async (req, res) => {
 
         const savedpost = await post.save()
 
-        if (isAdmin) {
+        if (isAdmin && currentUser._id.toString() !== comment.author.toString()) {
+            const reasonMessage = req.query.reason || "";
             await Notification.create({
                 recipient: comment.author,
                 sender: req.user.userID,
                 type: 'delete',
-                post: post._id
+                post: post._id,
+                message : reasonMessage
             })
         }
 
