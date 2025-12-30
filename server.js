@@ -8,7 +8,9 @@ import authRoutes from "./routes/auth.js"
 import postRoutes from "./routes/posts.js"
 import userRoutes from "./routes/users.js"
 import notificationRoutes from "./routes/notifications.js"
+import reportRoutes from "./routes/report.js";
 import ExpressMongoSanitize from "express-mongo-sanitize";
+
 
 
 dotenv.config();
@@ -89,4 +91,4 @@ app.use("/api/auth", authRoutes);
 app.use("/api/posts", postRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/notifications", notificationRoutes);
-
+app.use("/api/report", reportRoutes);
