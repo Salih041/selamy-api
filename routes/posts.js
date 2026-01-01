@@ -34,6 +34,41 @@ const findPostByIdOrSlug = async (id) => {
     return await Post.findOne({ slug: id });
 };
 
+let popularTagsCache = null;
+let lastCacheTime = 0;
+const CACHE_DURATION = 60 * 60 * 1000;
+
+router.get("/popular-tags", async (req,res)=>{
+    try{
+        const currentTime = Date.now();
+
+        if(popularTagsCache && (currentTime-lastCacheTime < CACHE_DURATION)){
+            return res.status(200).json(popularTagsCache);
+        }
+
+        console.log("data is coming from db")
+        const popularTags = await Post.aggregate([
+            {$unwind : "$tags"},
+            {
+                $group:{
+                    _id : "$tags",
+                    count : {$sum:1}
+                }
+            },
+            {$sort : {count : -1}},
+            {$limit : 10}
+        ]);
+        popularTagsCache = popularTags;
+        lastCacheTime = currentTime;
+
+        res.status(200).json(popularTags);
+    }catch(error)
+    {
+        console.error(error);
+        res.status(500).json({message: "Tags could not be retrieved"})
+    }
+})
+
 router.get("/", async (req, res) => {   // get all posts
     try {
         const page = parseInt(req.query.page) || 1;
@@ -702,7 +737,7 @@ router.put("/:id/save", authMiddleware, async (req, res) => {
     }
 })
 
-router.post("/upload-image", authMiddleware, upload.single('image'), (req, res) => {
+router.post("/upload-image", authMiddleware, upload.single('image'),async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ message: "Image couldnt be upload." });
@@ -712,5 +747,7 @@ router.post("/upload-image", authMiddleware, upload.single('image'), (req, res) 
         res.status(500).json({ error: error.message });
     }
 });
+
+
 
 export default router;
