@@ -135,7 +135,7 @@ router.post("/login",loginLimiter,
             const token = jwt.sign(
                 { userID: user._id, username: user.username },
                 process.env.JWT_SECRET,
-                { expiresIn: "7d" }
+                { expiresIn: "3d" }
             )
 
             res.status(200).json({ token, userID: user._id, role: user.role });

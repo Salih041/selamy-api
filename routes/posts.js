@@ -38,34 +38,33 @@ let popularTagsCache = null;
 let lastCacheTime = 0;
 const CACHE_DURATION = 60 * 60 * 1000;
 
-router.get("/popular-tags", async (req,res)=>{
-    try{
+router.get("/popular-tags", async (req, res) => {
+    try {
         const currentTime = Date.now();
 
-        if(popularTagsCache && (currentTime-lastCacheTime < CACHE_DURATION)){
+        if (popularTagsCache && (currentTime - lastCacheTime < CACHE_DURATION)) {
             return res.status(200).json(popularTagsCache);
         }
 
         console.log("data is coming from db")
         const popularTags = await Post.aggregate([
-            {$unwind : "$tags"},
+            { $unwind: "$tags" },
             {
-                $group:{
-                    _id : "$tags",
-                    count : {$sum:1}
+                $group: {
+                    _id: "$tags",
+                    count: { $sum: 1 }
                 }
             },
-            {$sort : {count : -1}},
-            {$limit : 10}
+            { $sort: { count: -1 } },
+            { $limit: 10 }
         ]);
         popularTagsCache = popularTags;
         lastCacheTime = currentTime;
 
         res.status(200).json(popularTags);
-    }catch(error)
-    {
+    } catch (error) {
         console.error(error);
-        res.status(500).json({message: "Tags could not be retrieved"})
+        res.status(500).json({ message: "Tags could not be retrieved" })
     }
 })
 
@@ -112,9 +111,9 @@ router.get("/search", async (req, res) => {  //search post
             const regex = new RegExp(safeSearchTag, 'i');
 
             queryFilter = {
-                $and : [
-                    {statu : 'published'},
-                    {tags : {$in : [regex]}}
+                $and: [
+                    { statu: 'published' },
+                    { tags: { $in: [regex] } }
                 ]
             }
         }
@@ -216,39 +215,37 @@ router.get("/user/:userId", async (req, res) => {
     }
 })
 
-router.get("/my-liked", authMiddleware, async(req,res)=>{
-    try{
+router.get("/my-liked", authMiddleware, async (req, res) => {
+    try {
         const user = await User.findById(req.user.userID).select('likedPosts');
-        if(!user) return res.status(404).json({message : "User not found"});
+        if (!user) return res.status(404).json({ message: "User not found" });
 
         const liked = await Post.find({
-            _id : {$in : user.likedPosts}
+            _id: { $in: user.likedPosts }
         }).populate("author", "username displayName profilePicture")
-        .select("-comments -likes").
-        sort({firstPublishDate : -1});
+            .select("-comments -likes").
+            sort({ firstPublishDate: -1 });
 
         res.status(200).json(liked)
-    }catch(error)
-    {
-        res.status(500).json({error: error.message})
+    } catch (error) {
+        res.status(500).json({ error: error.message })
     }
 })
 
-router.get("/my-saved", authMiddleware, async (req,res)=>{
-    try{
+router.get("/my-saved", authMiddleware, async (req, res) => {
+    try {
         const user = await User.findById(req.user.userID).select('savedPosts');
-        if(!user) return res.status(404).json({message : "User not found"});
+        if (!user) return res.status(404).json({ message: "User not found" });
 
         const saveds = await Post.find({
-            _id : {$in : user.savedPosts}
+            _id: { $in: user.savedPosts }
         }).populate("author", "username displayName profilePicture")
-        .select("-comments -likes")
-        .sort({firstPublishDate: -1});
+            .select("-comments -likes")
+            .sort({ firstPublishDate: -1 });
 
         res.status(200).json(saveds);
-    }catch(error)
-    {
-        res.status(500).json({error: error.message});
+    } catch (error) {
+        res.status(500).json({ error: error.message });
     }
 })
 
@@ -386,13 +383,13 @@ router.delete("/:id", authMiddleware, async (req, res) => {
 
         await post.deleteOne();
 
-        if (currentUser.role === "admin"  && currentUser._id.toString() !== post.author.toString()) {
+        if (currentUser.role === "admin" && currentUser._id.toString() !== post.author.toString()) {
             const reasonMessage = req.query.reason || "";
             await Notification.create({
                 recipient: post.author,
                 sender: req.user.userID,
                 type: 'delete',
-                message : reasonMessage
+                message: reasonMessage
             })
         }
 
@@ -468,7 +465,7 @@ router.put("/:id", authMiddleware,
                         sender: req.user.userID,
                         type: 'unpublish',
                         post: post._id,
-                        message : reasonMessage
+                        message: reasonMessage
                     })
                 }
             }
@@ -584,7 +581,7 @@ router.delete("/:id/comment/:commentid", authMiddleware, async (req, res) => {
                 sender: req.user.userID,
                 type: 'delete',
                 post: post._id,
-                message : reasonMessage
+                message: reasonMessage
             })
         }
 
@@ -685,9 +682,19 @@ router.put("/:id/like", authMiddleware, async (req, res) => {
             post.likeCount -= 1;
             message = "Unliked";
 
-            await User.findByIdAndUpdate(userId,{
-                $pull : {likedPosts: post._id}
+            await User.findByIdAndUpdate(userId, {
+                $pull: { likedPosts: post._id }
             })
+
+            if (post.author.toString() !== userId) {
+                await Notification.findOneAndDelete({  // delete notification
+                    recipient: post.author,
+                    sender: userId,
+                    type: 'like',
+                    post: post._id
+                });
+            }
+
         }
         else {
             post.likes.push(userId);
@@ -695,16 +702,26 @@ router.put("/:id/like", authMiddleware, async (req, res) => {
             message = "Liked"
 
             await User.findByIdAndUpdate(userId, {
-                $addToSet : {likedPosts : post._id}
+                $addToSet: { likedPosts: post._id }
             })
 
             if (post.author.toString() !== userId) {
-                await Notification.create({
+
+                const existingNotification = await Notification.findOne({
                     recipient: post.author,
                     sender: userId,
                     type: 'like',
                     post: post._id
                 });
+
+                if (!existingNotification) {
+                    await Notification.create({
+                        recipient: post.author,
+                        sender: userId,
+                        type: 'like',
+                        post: post._id
+                    });
+                }
             }
         }
 
@@ -737,7 +754,7 @@ router.put("/:id/save", authMiddleware, async (req, res) => {
     }
 })
 
-router.post("/upload-image", authMiddleware, upload.single('image'),async (req, res) => {
+router.post("/upload-image", authMiddleware, upload.single('image'), async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ message: "Image couldnt be upload." });
