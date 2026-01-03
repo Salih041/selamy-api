@@ -10,7 +10,7 @@ import userRoutes from "./routes/users.js"
 import notificationRoutes from "./routes/notifications.js"
 import reportRoutes from "./routes/report.js";
 import ExpressMongoSanitize from "express-mongo-sanitize";
-
+import path from "path";
 
 
 dotenv.config();
@@ -21,11 +21,14 @@ app.set('trust proxy', 1);
 const allowedOrigins = [
     "http://localhost:5173", // Test
     "https://www.selamy.me",
-    "https://selamy.me" // url
+    "https://selamy.me", // url
+    "https://google.com", // !!
 ];
 
 app.use(cors({
     origin: (origin, callback) => {
+        if(!origin) return callback(null, true);
+        
         if (origin && allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
@@ -46,6 +49,10 @@ const limiter = rateLimit({
         status: 429,
         message: "Too many requests. Please try again in 15 minutes."
     }
+});
+
+app.get('/robots.txt', (req, res) => {
+    res.sendFile(path.resolve('robots.txt'));
 });
 
 app.use(limiter);
