@@ -11,9 +11,25 @@ import { URL } from "url";
 
 const router = express.Router();
 
+router.get("/", authMiddleware, async (req, res) => { // get all users (admin)
+    try {
+        const currentUser = await User.findById(req.user.userID).select("-password");
+        if (currentUser.role !== "admin") {
+            return res.status(403).json({ message: "Forbidden" })
+        }
+        else{
+            const allUsers = await User.find().select("displayName username _id createdAt").sort({ createdAt: -1 });
+            res.status(200).json(allUsers);
+        }
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: error.message })
+    }
+})
+
 router.get("/:id", async (req, res) => {  // user by id
     try {
-        const user = await User.findById(req.params.id).select("-password").populate("following","username profilePicture displayName").populate("followers","username profilePicture displayName");
+        const user = await User.findById(req.params.id).select("-password").populate("following", "username profilePicture displayName").populate("followers", "username profilePicture displayName");
 
         if (!user) return res.status(404).json({ message: "User not found" });
 
@@ -39,7 +55,7 @@ const getPublicIdFromUrl = (url) => {
 
 router.put("/update/:id", authMiddleware, upload.single('profilePicture'), async (req, res) => {
     try {
-        const {bio , displayName} = req.body;
+        const { bio, displayName } = req.body;
         if (req.user.userID !== req.params.id) {
             return res.status(403).json({ message: "You can only edit your own account." });
         }
@@ -48,23 +64,23 @@ router.put("/update/:id", authMiddleware, upload.single('profilePicture'), async
         if (!currentUser) return res.status(404).json({ message: "User not found" });
 
         const cleanBio = sanitizeHtml(bio, {
-            allowedTags: [], 
-            allowedAttributes: {} 
+            allowedTags: [],
+            allowedAttributes: {}
         });
         const cleanDisplayName = sanitizeHtml(displayName, {
-            allowedTags : [],
-            allowedAttributes : {}
+            allowedTags: [],
+            allowedAttributes: {}
         });
         const updates = {
             bio: cleanBio,
             displayName: cleanDisplayName,
         };
 
-        if(req.body.socials){
+        if (req.body.socials) {
             let socialData;
             try {
-                socialData = typeof req.body.socials === 'string' 
-                    ? JSON.parse(req.body.socials) 
+                socialData = typeof req.body.socials === 'string'
+                    ? JSON.parse(req.body.socials)
                     : req.body.socials;
             } catch (e) {
                 return res.status(400).json({ message: "Invalid JSON format for socials" });
@@ -74,30 +90,30 @@ router.put("/update/:id", authMiddleware, upload.single('profilePicture'), async
                 if (!url || typeof url !== 'string') return "";
                 let cleanUrl = url.trim();
                 if (!cleanUrl) return "";
-                
+
                 if (!/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(cleanUrl)) {
                     cleanUrl = `https://${cleanUrl}`;
                 }
 
-                try{
+                try {
                     const parsedUrl = new URL(cleanUrl);
                     if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
-                        return ""; 
+                        return "";
                     }
                     const hostname = parsedUrl.hostname.toLowerCase().replace(/^www\./, '');
-                    const isValid = allowedDomains.some(domain => 
+                    const isValid = allowedDomains.some(domain =>
                         hostname === domain || hostname.endsWith(`.${domain}`)
                     );
                     if (!isValid) return "";
                     return parsedUrl.href;
-                }catch (error) {
+                } catch (error) {
                     return "";
                 }
             };
             if (socialData.x) socialData.x = validateUrl(socialData.x, ['x.com', 'twitter.com']);
             if (socialData.instagram) socialData.instagram = validateUrl(socialData.instagram, ['instagram.com']);
             if (socialData.github) socialData.github = validateUrl(socialData.github, ['github.com']);
-            
+
             updates.socials = socialData;
         }
 
@@ -124,13 +140,13 @@ router.put("/update/:id", authMiddleware, upload.single('profilePicture'), async
     }
 })
 
-router.delete("/:id",authMiddleware,async(req,res)=>{
-    try{
+router.delete("/:id", authMiddleware, async (req, res) => {
+    try {
         if (req.user.userID !== req.params.id) {
             return res.status(403).json({ message: "You cannot make transactions outside of your own account!" });
         }
         const user = await User.findById(req.params.id);
-        if(!user) return res.status(404).json({message : "User not found"});
+        if (!user) return res.status(404).json({ message: "User not found" });
 
         if (user.profilePicture) {
             const publicId = getPublicIdFromUrl(user.profilePicture);
@@ -143,39 +159,39 @@ router.delete("/:id",authMiddleware,async(req,res)=>{
         await User.findByIdAndDelete(req.params.id);
 
         res.status(200).json({ message: "Your account and all your posts have been successfully deleted." });
-    }catch(error){
-        res.status(500).json({error:error.message})
+    } catch (error) {
+        res.status(500).json({ error: error.message })
     }
 })
 
-router.put("/:id/follow",authMiddleware,async(req,res)=>{
-    try{
-        if(req.user.userID === req.params.id) return res.status(400).json({message:"You cannot follow yourself!"});
+router.put("/:id/follow", authMiddleware, async (req, res) => {
+    try {
+        if (req.user.userID === req.params.id) return res.status(400).json({ message: "You cannot follow yourself!" });
 
         const userToFollow = await User.findById(req.params.id);
         const currentUser = await User.findById(req.user.userID);
-        if(!userToFollow || !currentUser) return res.status(404).json({message:"User not found"});
+        if (!userToFollow || !currentUser) return res.status(404).json({ message: "User not found" });
 
-        if(!currentUser.following.some(id=>id.toString()===req.params.id)){ // not already following
-            await userToFollow.updateOne({$push:{followers:currentUser._id}});
-            await currentUser.updateOne({$push:{following:userToFollow._id}});
-            
+        if (!currentUser.following.some(id => id.toString() === req.params.id)) { // not already following
+            await userToFollow.updateOne({ $push: { followers: currentUser._id } });
+            await currentUser.updateOne({ $push: { following: userToFollow._id } });
+
             await Notification.create({
                 recipient: userToFollow._id,
                 sender: currentUser._id,
                 type: "follow",
             });
 
-            res.status(200).json({message:"User followed successfully!",isFollowing:true});
+            res.status(200).json({ message: "User followed successfully!", isFollowing: true });
         }
-        else{
-            await userToFollow.updateOne({$pull:{followers:currentUser._id}});
-            await currentUser.updateOne({$pull:{following:userToFollow._id}});
-            res.status(200).json({message:"User unfollowed successfully!",isFollowing:false});
+        else {
+            await userToFollow.updateOne({ $pull: { followers: currentUser._id } });
+            await currentUser.updateOne({ $pull: { following: userToFollow._id } });
+            res.status(200).json({ message: "User unfollowed successfully!", isFollowing: false });
         }
 
-    }catch(error){
-        res.status(500).json({error:error.message})
+    } catch (error) {
+        res.status(500).json({ error: error.message })
     }
 })
 

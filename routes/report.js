@@ -48,7 +48,7 @@ router.post("/", authMiddleware, async (req, res) => {
 
 router.get("/", authMiddleware, async (req,res)=>{
     try{
-        const currentUser = await User.findById(req.user.userID);
+        const currentUser = await User.findById(req.user.userID).select("-password");
         if(currentUser.role !== "admin") {
             return res.status(403).json({message : "Forbidden"})
         }
