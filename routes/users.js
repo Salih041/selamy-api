@@ -36,7 +36,7 @@ router.get("/:id", readLimiter, async (req, res) => {  // user by id
             return res.status(404).json({ message: "User Not Found (Invalid user ID)" });
         }
 
-        const user = await User.findById(id).select("-password").populate("following", "username profilePicture displayName").populate("followers", "username profilePicture displayName");
+        const user = await User.findById(id).select("-password -email -savedPosts -likedPosts -verificationToken -resetPasswordToken").populate("following", "username profilePicture displayName").populate("followers", "username profilePicture displayName");
 
         if (!user) return res.status(404).json({ message: "User not found" });
 
