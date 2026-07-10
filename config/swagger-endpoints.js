@@ -39,8 +39,8 @@ export const authEndpoints = {
                             schema: {
                                 type: 'object',
                                 properties: {
-                                    message: { type: 'string', example: 'Kullanıcı oluşturuldu' },
-                                    userId: { type: 'string' }
+                                    message: { type: 'string', example: 'User created successfully' },
+                                    userId: { type: 'string', example: '60d0fe4f5311236168a109ca' }
                                 }
                             }
                         }

@@ -5,68 +5,75 @@ import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
 
-// Frontend'in yönleneceği adres (Örn: http://localhost:5173)
-// .env'den alıyoruz, yoksa varsayılan local adresi kullanıyoruz
-const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
-
-// Hata durumunda frontend'in logine yönlendirme
-const redirectWithError = (res, errorMsg) => {
-    return res.redirect(`${CLIENT_URL}/login?error=${encodeURIComponent(errorMsg)}`);
+// Resolve frontend redirect URL at runtime
+const getClientUrl = () => {
+    if (process.env.CLIENT_URL) {
+        return process.env.CLIENT_URL;
+    }
+    if (process.env.NODE_ENV === 'production') {
+        return "https://www.selamy.me"; // Fallback to production URL if env is missing
+    }
+    return "http://localhost:5173";
 };
 
-// Başarılı girişte sistem JWT'sini üretip Transit sayfasına yönlendirme
+// Redirect to frontend login on error
+const redirectWithError = (res, errorMsg) => {
+    return res.redirect(`${getClientUrl()}/login?error=${encodeURIComponent(errorMsg)}`);
+};
+
+// Generate system JWT and redirect to transit page on successful login
 const handleSuccessfulAuth = (req, res) => {
     try {
-        const user = req.user; // Passport.js'den gelen başarıyla doğrulanmış/kayıt olmuş kullanıcı objesi
+        const user = req.user; // Authenticated user object from Passport.js
         if (!user) {
             return redirectWithError(res, "Authentication failed. User not found.");
         }
 
-        // Kendi sistem JWT'mizi üretiyoruz
+        // Generate custom system JWT
         const token = jwt.sign(
             { userID: user._id, username: user.username, jti: uuidv4() },
             process.env.JWT_SECRET,
             { expiresIn: "3d" }
         );
 
-        // Transit sayfasına yönlendir (token sadece URL'de bir anlık görünüp React tarafından alınacak)
-        res.redirect(`${CLIENT_URL}/oauth-callback?token=${token}`);
+        // Redirect to transit page (token will be grabbed by React from URL)
+        res.redirect(`${getClientUrl()}/oauth-callback?token=${token}`);
     } catch (error) {
         console.error(error);
         redirectWithError(res, "Internal server error during OAuth generation.");
     }
 };
 
-// ======================= GOOGLE ROTALARI =======================
+// ======================= GOOGLE ROUTES =======================
 
-// 1. Google'a yönlendirme rotası
+// 1. Redirect to Google
 router.get("/google", passport.authenticate("google", {
     scope: ["profile", "email"],
-    session: false // Transit Page mimarisini kullandığımız için session iptal
+    session: false // Disable session since we use transit page architecture
 }));
 
-// 2. Google'dan dönüş (Callback) rotası
+// 2. Google Callback route
 router.get("/google/callback", (req, res, next) => {
     passport.authenticate("google", { session: false }, (err, user, info) => {
-        // Hata durumunda frontend'e yönlendiriyoruz
+        // Redirect to frontend on error
         if (err) return redirectWithError(res, err.message || "Google login process failed.");
         if (!user) return redirectWithError(res, "Google user could not be retrieved.");
         
-        // Başarılıysa özel fonksiyonumuza gönderiyoruz
+        // Handle successful authentication
         req.user = user;
         handleSuccessfulAuth(req, res);
     })(req, res, next);
 });
 
-// ======================= GITHUB ROTALARI =======================
+// ======================= GITHUB ROUTES =======================
 
-// 1. GitHub'a yönlendirme rotası
+// 1. Redirect to GitHub
 router.get("/github", passport.authenticate("github", {
-    scope: ["user:email"], // Sadece email okumak istediğimizi belirtiyoruz
+    scope: ["user:email"], // Request email scope
     session: false
 }));
 
-// 2. GitHub'dan dönüş (Callback) rotası
+// 2. GitHub Callback route
 router.get("/github/callback", (req, res, next) => {
     passport.authenticate("github", { session: false }, (err, user, info) => {
         if (err) return redirectWithError(res, err.message || "GitHub login process failed.");

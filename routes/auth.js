@@ -72,7 +72,7 @@ router.post("/register", authIpLimiter, [
                 return res.status(500).json({ message: "Mail couldnt be sent." });
             }
 
-            res.status(201).json({ message: "Kullanıcı oluşturuldu", userId: savedUser._id });
+            res.status(201).json({ message: "User created successfully", userId: savedUser._id });
         } catch (error) {
             if (error.code === 11100) return res.status(400).json({ message: "There is already a user with this informations." });
             console.error(error)

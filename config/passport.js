@@ -5,19 +5,19 @@ import User from '../models/User.js';
 import dotenv from 'dotenv';
 dotenv.config();
 
-// E-postadan benzersiz username türeten fonksiyon
+// Function to generate a unique username from email
 const generateUniqueUsername = async (email) => {
-    // '@' işaretinden önceki kısmı alıp küçük harfe çevir
+    // Extract part before '@' and convert to lowercase
     let baseUsername = email.split('@')[0].toLowerCase();
     
-    // Sadece harf, rakam ve alt çizgiye izin ver (User modelindeki regex'e uyması için)
+    // Keep only letters, numbers, and underscores (matching User model regex)
     baseUsername = baseUsername.replace(/[^a-z0-9_]/g, '');
     
     let username = baseUsername;
     let isUnique = false;
     let counter = 1;
 
-    // Veritabanında eşleşme oldukça sonuna sayı ekleyerek benzersiz yap
+    // Append numbers to make it unique if it already exists
     while (!isUnique) {
         const existingUser = await User.findOne({ username });
         if (!existingUser) {
@@ -30,17 +30,17 @@ const generateUniqueUsername = async (email) => {
     return username;
 };
 
-// Hem Google hem Github için ortak giriş/kayıt algoritması
+// Common login/register algorithm for both Google and Github
 const handleOAuthUser = async (profile, provider, done) => {
     try {
-        // E-posta adresini al
+        // Extract email address
         const email = profile.emails[0].value.toLowerCase();
         
-        // Bu e-postayla kayıtlı kullanıcı var mı kontrol et
+        // Check if a user with this email already exists
         let user = await User.findOne({ email });
 
         if (user) {
-            // Kullanıcı var ama daha önce normal kayıt olmuş. Profilini güncelliyoruz (Account Linking)
+            // User exists from local registration. Link OAuth profile (Account Linking)
             if (provider === 'google' && !user.googleId) {
                 user.googleId = profile.id;
                 user.authProvider = user.authProvider === 'local' ? 'google' : user.authProvider;
@@ -53,14 +53,14 @@ const handleOAuthUser = async (profile, provider, done) => {
             return done(null, user);
         }
 
-        // Kullanıcı daha önce hiç kayıt olmamış, yeni kayıt açıyoruz
+        // User doesn't exist, create a new record
         const uniqueUsername = await generateUniqueUsername(email);
 
         user = new User({
             username: uniqueUsername,
             email: email,
             displayName: profile.displayName || uniqueUsername,
-            isVerified: true, // OAuth'tan geldiği için e-posta zaten doğrulanmış kabul ediyoruz
+            isVerified: true, // Treat email as verified since it comes from OAuth
             authProvider: provider,
             googleId: provider === 'google' ? profile.id : null,
             githubId: provider === 'github' ? profile.id : null
@@ -73,7 +73,7 @@ const handleOAuthUser = async (profile, provider, done) => {
     }
 };
 
-// ---------------- Google Stratejisi ----------------
+// ---------------- Google Strategy ----------------
 passport.use(
     new GoogleStrategy(
         {
@@ -87,17 +87,17 @@ passport.use(
     )
 );
 
-// ---------------- GitHub Stratejisi ----------------
+// ---------------- GitHub Strategy ----------------
 passport.use(
     new GitHubStrategy(
         {
             clientID: process.env.GITHUB_CLIENT_ID || 'DUMMY_ID_GEREKLI',
             clientSecret: process.env.GITHUB_CLIENT_SECRET || 'DUMMY_SECRET_GEREKLI',
             callbackURL: '/api/oauth/github/callback',
-            scope: ['user:email'] // GitHub'dan özel olarak e-postayı da istememiz gerekiyor
+            scope: ['user:email'] // Request email explicitly from GitHub
         },
         async (accessToken, refreshToken, profile, done) => {
-            // Eğer kullanıcının GitHub'da hiç e-postası yoksa veya gizliyse
+            // If user has no email or it is hidden on GitHub
             if (!profile.emails || profile.emails.length === 0) {
                 return done(new Error("No email found from GitHub. E-posta adresi gizli veya yok."), null);
             }
