@@ -8,7 +8,15 @@ const userSchema = new mongoose.Schema({
     },
     username: { type: String, required: true, unique: true, trim: true , lowercase:true},
     email: { type: String, required: true, unique: true, trim: true, lowercase: true },
-    password: { type: String, required: true },
+    password: { type: String },
+    
+    authProvider: {
+        type: String,
+        enum: ['local', 'google', 'github'],
+        default: 'local'
+    },
+    googleId: { type: String, default: null },
+    githubId: { type: String, default: null },
 
     displayName: { 
         type: String, 

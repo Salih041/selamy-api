@@ -16,6 +16,8 @@ import swaggerUi from 'swagger-ui-express';
 import { specs } from './config/swagger.js';
 import swaggerAuthMiddleware from "./middlewares/swaggerAuthMiddleware.js";
 import { globalLimiter } from "./middlewares/limiters.js";
+import passport from "./config/passport.js";
+import oauthRoutes from "./routes/oauth.js";
 
 
 
@@ -58,6 +60,7 @@ app.get('/robots.txt', (req, res) => { //robots.txt
 
 app.use(helmet());
 app.use(express.json());
+app.use(passport.initialize());
 
 
 app.use((req, res, next) => {
@@ -79,7 +82,7 @@ mongoose.connect(dburl)
         process.exit(1);
     })
 
-app.use('/internal-docs',swaggerLoginLimiter, swaggerAuthMiddleware, swaggerUi.serve, swaggerUi.setup(specs, {
+app.use('/internal-docs', swaggerLoginLimiter, swaggerAuthMiddleware, swaggerUi.serve, swaggerUi.setup(specs, {
     swaggerOptions: {
         persistAuthorization: true,
         displayOperationId: true,
@@ -89,6 +92,7 @@ app.use('/internal-docs',swaggerLoginLimiter, swaggerAuthMiddleware, swaggerUi.s
 app.use(globalLimiter);
 
 app.use("/api/auth", authRoutes);
+app.use("/api/oauth", oauthRoutes);
 app.use("/api/posts", postRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/notifications", notificationRoutes);
