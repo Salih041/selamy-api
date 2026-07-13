@@ -5,6 +5,7 @@ const fileFilter = (req, file, cb) => {
     const allowedTypes = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
 
     if (allowedTypes.includes(file.mimetype)) {
+        // Dosya adı güvenliği için benzersiz isim oluşturulabilir
         cb(null, true);
     } else {
         cb(new Error("Wrong file format! Only images can be uploaded"), false);

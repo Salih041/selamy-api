@@ -7,7 +7,8 @@ const router = express.Router();
 
 // Resolve frontend redirect URL at runtime
 const getClientUrl = () => {
-    if (process.env.CLIENT_URL) {
+    const allowedDomains = ["https://www.selamy.me", "http://localhost:5173"];
+    if (process.env.CLIENT_URL && allowedDomains.includes(process.env.CLIENT_URL)) {
         return process.env.CLIENT_URL;
     }
     if (process.env.NODE_ENV === 'production') {

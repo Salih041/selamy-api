@@ -8,4 +8,10 @@ if (!process.env.REDIS_URL) {
     console.log("Redis url: ", process.env.REDIS_URL);
 }
 
-export const redis = new Redis(process.env.REDIS_URL ?? null);
+if (!process.env.REDIS_PASSWORD) {
+    console.warn("No REDIS_PASSWORD");
+}
+
+export const redis = new Redis(process.env.REDIS_URL ?? null, {
+    password: process.env.REDIS_PASSWORD,
+}); // Redis bağlantısı için parola doğrulaması eklendi
