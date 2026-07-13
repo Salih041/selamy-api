@@ -7,7 +7,7 @@ const authMiddleware = async (req,res,next)=>{
         const authHeader = req.headers.authorization;
         if(!authHeader) return res.status(401).json({message : "Token not found"});
 
-        const token = authHeader.split(" ")[1];
+        const token = authHeader && authHeader.split(" ")[1]; // Token varlığını kontrol etmek için ek kontrol eklendi
         const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
 
         const isBlackListed = await redis.get(`bl:${decodedToken.jti}`);

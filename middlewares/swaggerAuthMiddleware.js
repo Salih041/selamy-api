@@ -16,8 +16,13 @@ const swaggerAuthMiddleware = (req, res, next) => {
         const validUsername = process.env.SWAGGER_USERNAME;
         const validPassword = process.env.SWAGGER_PASSWORD;
 
+        // Kullanıcı adı ve şifre eşleşmesi sağlanıyorsa, HTTPS kontrolü yapılır
         if (username === validUsername && password === validPassword) {
-            return next();
+            if (req.secure || req.headers['x-forwarded-proto'] === 'https') {
+                return next();
+            } else {
+                return res.status(403).json({ message: 'HTTPS is required for authentication' });
+            }
         }
 
         console.log("Invalid user : " ,username)
